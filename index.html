@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Termo de Uso de Dados e Imagem - MIM</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; background-color: #f8f0fc; margin: 0; padding: 20px; }
+        .header { background-color: #6a1b9a; color: white; padding: 15px; border-radius: 10px; margin-bottom: 20px; font-weight: bold; font-size: 22px; }
+        .card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 450px; margin: 0 auto; }
+        p { font-size: 16px; color: #333; font-weight: bold; margin-bottom: 10px; text-align: left; }
+        .texto-termo { background-color: #f1f1f1; padding: 15px; border-radius: 8px; font-size: 15px; text-align: justify; margin-bottom: 15px; color: #555; line-height: 1.5; border-left: 4px solid #6a1b9a; }
+        input { width: 100%; padding: 15px; font-size: 16px; border: 2px solid #ddd; border-radius: 8px; box-sizing: border-box; margin-bottom: 25px; }
+        input:focus { border-color: #6a1b9a; outline: none; }
+        
+        .btn { display: block; width: 100%; padding: 15px; margin: 10px 0; font-size: 16px; border: none; border-radius: 12px; cursor: pointer; color: white; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .btn-ouvir { background-color: #007bff; margin-bottom: 25px; }
+        .btn-gravar { background-color: #dc3545; }
+        .btn-parar { background-color: #ffc107; color: #333; display: none; }
+        .btn-enviar { background-color: #25D366; display: none; margin-top: 20px; }
+        
+        .status { margin-top: 15px; font-weight: bold; font-size: 16px; color: #6a1b9a; min-height: 25px; }
+        .piscar { animation: pulse 1.5s infinite; color: #dc3545; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        🌸 Termo de Uso de Dados e Imagem - MIM
+    </div>
+
+    <div class="card">
+        <p>1. Nome completo da entrevistada:</p>
+        <input type="text" id="nomeEntrevistada" placeholder="Digite o nome aqui...">
+
+        <p>2. Termo de Consentimento:</p>
+        <div class="texto-termo" id="textoTermo">
+            "Olá! Eu faço parte do projeto Mulheres Inspirando Mulheres. Você autoriza que o projeto guarde os seus dados de forma segura e sigilosa, e também autoriza o uso da sua imagem, como em fotos ou vídeos que possamos fazer hoje, nas redes sociais e materiais educativos do projeto?"
+        </div>
+        
+        <button class="btn btn-ouvir" onclick="ouvirTermo()">🔊 OUVIR O TERMO PARA A PESSOA</button>
+
+        <p>3. Gravação de Voz (A pessoa deve dizer "Sim"):</p>
+        <button class="btn btn-gravar" id="btnGravar" onclick="iniciarGravacao()">🎙️ INICIAR GRAVAÇÃO</button>
+        <button class="btn btn-parar" id="btnParar" onclick="pararGravacao()">⏹️ PARAR GRAVAÇÃO</button>
+
+        <div class="status" id="statusTexto">Pronto para gravar.</div>
+
+        <button class="btn btn-enviar" id="btnEnviar" onclick="enviarAudio()">☁️ ENVIAR PARA O DRIVE</button>
+    </div>
+
+    <script>
+        // Link do seu Apps Script (O Motor do Drive)
+        const urlScript = "https://script.google.com/macros/s/AKfycbxQ2CUoSfqN7HRjStYj9F93ufWbRyd2rCauSotoljyb8MUEmUDzb01P2WVGCWKUMpyF/exec";
+
+        let mediaRecorder;
+        let audioChunks = [];
+        let audioBase64 = "";
+
+        // Função que lê o termo em voz alta
+        function ouvirTermo() {
+            const texto = document.getElementById("textoTermo").innerText;
+            const fala = new SpeechSynthesisUtterance(texto);
+            fala.lang = 'pt-BR';
+            window.speechSynthesis.speak(fala);
+        }
+
+        async function iniciarGravacao() {
+            const nome = document.getElementById("nomeEntrevistada").value.trim();
+            if (!nome) {
+                alert("Por favor, digite o nome da entrevistada primeiro!");
+                document.getElementById("nomeEntrevistada").focus();
+                return;
+            }
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+
+                mediaRecorder.ondataavailable = event => {
+                    if (event.data.size > 0) audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    const reader = new FileReader();
+                    reader.readAsDataURL(audioBlob);
+                    reader.onloadend = function() {
+                        audioBase64 = reader.result;
+                        document.getElementById("btnEnviar").style.display = "block";
+                        document.getElementById("statusTexto").innerText = "✅ Áudio capturado! Pronto para enviar.";
+                        document.getElementById("statusTexto").classList.remove("piscar");
+                    }
+                };
+
+                mediaRecorder.start();
+                document.getElementById("btnGravar").style.display = "none";
+                document.getElementById("btnParar").style.display = "block";
+                document.getElementById("btnEnviar").style.display = "none";
+                document.getElementById("statusTexto").innerText = "🔴 Gravando... Peça para a pessoa responder!";
+                document.getElementById("statusTexto").classList.add("piscar");
+
+            } catch (err) {
+                alert("Erro ao acessar o microfone. Verifique as permissões do navegador.");
+            }
+        }
+
+        function pararGravacao() {
+            if (mediaRecorder && mediaRecorder.state !== "inactive") {
+                mediaRecorder.stop();
+                mediaRecorder.stream.getTracks().forEach(track => track.stop()); // Desliga o microfone
+                
+                document.getElementById("btnParar").style.display = "none";
+                document.getElementById("btnGravar").style.display = "block";
+                document.getElementById("btnGravar").innerText = "🔄 GRAVAR DE NOVO";
+                document.getElementById("statusTexto").innerText = "Processando áudio...";
+            }
+        }
+
+        function enviarAudio() {
+            const nomeOriginal = document.getElementById("nomeEntrevistada").value.trim();
+            const nomeLimpo = nomeOriginal.replace(/[^a-zA-Z0-9À-ú ]/g, "").trim();
+            const btn = document.getElementById("btnEnviar");
+
+            btn.innerText = "⏳ ENVIANDO PARA O DRIVE...";
+            btn.disabled = true;
+
+            const payload = {
+                audioBase64: audioBase64,
+                nomeArquivo: `Consentimento_${nomeLimpo}.webm`
+            };
+
+            fetch(urlScript, {
+                method: 'POST',
+                mode: 'no-cors',
+                body: JSON.stringify(payload)
+            })
+            .then(() => {
+                alert("✅ Consentimento salvo com sucesso na pasta do Drive!");
+                // Limpa os campos para a próxima entrevista
+                document.getElementById("nomeEntrevistada").value = "";
+                document.getElementById("btnEnviar").style.display = "none";
+                document.getElementById("btnGravar").innerText = "🎙️ INICIAR GRAVAÇÃO";
+                document.getElementById("statusTexto").innerText = "Pronto para gravar.";
+                btn.innerText = "☁️ ENVIAR PARA O DRIVE";
+                btn.disabled = false;
+            })
+            .catch(error => {
+                alert("❌ Erro ao enviar. Verifique a internet e tente novamente.");
+                btn.innerText = "☁️ TENTAR NOVAMENTE";
+                btn.disabled = false;
+            });
+        }
+    </script>
+</body>
+</html>
